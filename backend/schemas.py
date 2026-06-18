@@ -49,8 +49,8 @@ class PlaceBase(BaseModel):
     website: Optional[str] = None
     instagram: Optional[str] = Field(None, max_length=100)
     facebook: Optional[str] = Field(None, max_length=100)
-    price_range: Optional[PriceRange] = PriceRange.mid
-    place_type: Optional[PlaceType] = PlaceType.other
+    price_range: Optional[PriceRange] = "mid"
+    place_type: Optional[PlaceType] = "other"
     has_delivery: bool = False
     payment_methods: List[PaymentMethod] = Field(default_factory=list)
     schedule: Optional[Dict[DayKey, Optional[str]]] = None
