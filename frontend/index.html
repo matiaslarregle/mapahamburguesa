@@ -403,8 +403,8 @@
           user.avatar_url ||
           `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=e85d04&color=fff`;
         document.getElementById("user-name").textContent = user.name;
+        btnAdd.classList.remove("hidden");
         if (window.auth.isModerator(user)) {
-          btnAdd.classList.remove("hidden");
           btnAdmin?.classList.remove("hidden");
         }
       } else {
