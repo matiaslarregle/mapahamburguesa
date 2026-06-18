@@ -14,7 +14,7 @@
           await window.supabaseClient.auth.signInWithOAuth({
             provider: "google",
             options: {
-              redirectTo: window.location.origin,
+              redirectTo: `${window.location.origin}/index.html`
               queryParams: { access_type: "offline", prompt: "consent" },
             },
           });
