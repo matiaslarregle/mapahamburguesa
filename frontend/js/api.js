@@ -5,7 +5,7 @@
  */
 (function () {
   const api = {
-    BASE_URL: window.API_BASE_URL || "http://localhost:8000",
+    BASE_URL: window.API_BASE_URL || "https://mapahamburguesa-api-glmc.onrender.com",
 
     // ====================== Helper genérico ======================
     async request(path, options = {}) {
