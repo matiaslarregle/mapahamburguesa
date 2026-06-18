@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 if settings.RESEND_API_KEY:
     resend.api_key = settings.RESEND_API_KEY
 
-FROM_ADDRESS = "MapaHamburguesa <noreply@mapahamburguesa.com>"
+FROM_ADDRESS = "MapaHamburguesa <onboarding@resend.dev>"
 
 
 class EmailService:
