@@ -172,7 +172,7 @@
             ${userHasReview ? "✓ Ya dejaste review" : "⭐ Dejar review"}
           </button>
           <button class="btn btn-secondary" data-action="suggest">✏️ Sugerir</button>
-          <button class="btn btn-secondary" data-action="photo">📷 Foto</button>
+
         </div>
       `;
     },
@@ -528,6 +528,9 @@
       }[c]));
     },
   };
+
+  window.sidebarApp = sidebarApp;
+})();
 
   window.sidebarApp = sidebarApp;
 })();
