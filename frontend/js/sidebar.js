@@ -531,6 +531,3 @@
 
   window.sidebarApp = sidebarApp;
 })();
-
-  window.sidebarApp = sidebarApp;
-})();
