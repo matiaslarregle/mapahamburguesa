@@ -14,7 +14,7 @@
           await window.supabaseClient.auth.signInWithOAuth({
             provider: "google",
             options: {
-              redirectTo: `${window.location.origin}/index.html`
+              redirectTo: "https://mapahamburguesa-lf3i.vercel.app/index.html"
               queryParams: { access_type: "offline", prompt: "consent" },
             },
           });
