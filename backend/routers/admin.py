@@ -5,6 +5,7 @@ import logging
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from ..dependencies import get_admin_user, get_moderator_user, get_db_service
+from ..config import settings
 from ..schemas import PlaceResponse, SuggestionResponse, MessageResponse
 from ..services.supabase_service import SupabaseService
 from ..services.email_service import EmailService, get_email_service
@@ -54,9 +55,15 @@ async def approve_place(
     # Notificar al autor por email
     added_by = place.get("added_by")
     if added_by:
-        # Para no acoplarnos a Supabase Auth acá, simplemente logueamos
         logger.info(f"Local aprobado: {place['name']} (id={place_id})")
-        # email_svc.send_email(...) se puede activar si guardamos el email en el profile
+        user_email = await svc.get_user_email(added_by)
+        if user_email:
+            place_url = f"{settings.FRONTEND_URL}/?place={place_id}"
+            await email_svc.send_email(
+                to=user_email,
+                subject=f"🍔 ¡Tu local '{place['name']}' fue aprobado!",
+                html=EmailService.template_place_approved(place["name"], place_url),
+            )
 
     return place
 
@@ -71,11 +78,24 @@ async def reject_place(
     place_id: UUID,
     _user: dict = Depends(get_moderator_user),
     svc: SupabaseService = Depends(get_db_service),
+    email_svc: EmailService = Depends(get_email_service),
 ):
     place = await svc.get_place(place_id)
     if not place:
         raise HTTPException(status_code=404, detail="Local no encontrado")
     await svc.reject_place(place_id)
+
+    # Notificar al autor
+    added_by = place.get("added_by")
+    if added_by:
+        user_email = await svc.get_user_email(added_by)
+        if user_email:
+            await email_svc.send_email(
+                to=user_email,
+                subject=f"Sobre tu sugerencia: {place['name']}",
+                html=EmailService.template_place_rejected(place["name"]),
+            )
+
     return MessageResponse(message=f"Local '{place['name']}' rechazado")
 
 
@@ -134,4 +154,3 @@ async def reject_suggestion(
 ):
     await svc.resolve_suggestion(suggestion_id, approved=False, reviewed_by=current_user["id"])
     return MessageResponse(message="Sugerencia rechazada")
-
