@@ -14,7 +14,7 @@
           await window.supabaseClient.auth.signInWithOAuth({
             provider: "google",
             options: {
-              redirectTo: window.location.origin + "/"
+              redirectTo: "https://mapahamburguesa-lf3i.vercel.app"
             }
           });
 
@@ -101,11 +101,50 @@
      */
     onAuthStateChange(callback) {
       const { data } = window.supabaseClient.auth.onAuthStateChange(
-        (event, session) => {
+        async (event, session) => {
+          if (event === "SIGNED_IN" && session?.user) {
+            await auth._ensureProfile(session.user);
+          }
           callback(event, session);
         }
       );
       return () => data.subscription.unsubscribe();
+    },
+
+    /**
+     * Crea el profile en Supabase si no existe todavía.
+     */
+    async _ensureProfile(user) {
+      try {
+        const { data: existing } = await window.supabaseClient
+          .from("profiles")
+          .select("id")
+          .eq("id", user.id)
+          .single();
+
+        if (existing) return;
+
+        const name =
+          user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
+          user.email.split("@")[0];
+        const avatar_url =
+          user.user_metadata?.avatar_url ||
+          user.user_metadata?.picture ||
+          null;
+
+        await window.supabaseClient.from("profiles").insert({
+          id: user.id,
+          name,
+          avatar_url,
+          role: "user",
+          is_active: true,
+        });
+
+        console.log("✅ Profile creado para", user.email);
+      } catch (err) {
+        console.error("Error creando profile:", err);
+      }
     },
 
     /**
