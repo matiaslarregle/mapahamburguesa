@@ -145,24 +145,60 @@
       form.elements["place_id"].value = placeId;
       form.elements["rating"].value = "";
       form.elements["comment"].value = "";
+      // Limpiar foto
+      const photoInput = document.getElementById("review-photo-input");
+      const photoPreview = document.getElementById("review-photo-preview");
+      if (photoInput) photoInput.value = "";
+      if (photoPreview) photoPreview.style.display = "none";
       this.previewStars(0, true);
       this.showModal("modal-review");
+
+      // Preview de foto
+      photoInput?.addEventListener("change", function() {
+        const file = this.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          document.getElementById("review-photo-img").src = e.target.result;
+          photoPreview.style.display = "block";
+        };
+        reader.readAsDataURL(file);
+      });
+      document.getElementById("review-photo-clear")?.addEventListener("click", function() {
+        photoInput.value = "";
+        photoPreview.style.display = "none";
+      });
     },
 
     handleReview(e) {
       return this.submitWithTurnstile({
         event: e,
         useFormData: false,
-        submit: (payload) => {
+        submit: async (payload) => {
           if (!payload.rating) {
             throw new Error("Elegí un rating con las estrellas");
           }
           const placeId = payload.place_id;
-          return window.api.reviews.create(placeId, {
+          // 1. Crear la review
+          const review = await window.api.reviews.create(placeId, {
             rating: Number(payload.rating),
             comment: payload.comment,
             cf_turnstile_token: payload.cf_turnstile_token,
           });
+          // 2. Si hay foto, subirla
+          const photoInput = document.getElementById("review-photo-input");
+          const file = photoInput?.files?.[0];
+          if (file) {
+            try {
+              const resized = await window.imageResizer?.resize(file) || file;
+              const formData = new FormData();
+              formData.append("file", resized);
+              await window.api.photos.uploadWithFormData(placeId, formData);
+            } catch (photoErr) {
+              console.warn("Review publicada pero falló la foto:", photoErr);
+            }
+          }
+          return review;
         },
         successMessage: "⭐ Review publicada",
         onSuccess: async () => {
@@ -410,5 +446,7 @@
     },
   };
 
+  window.formsApp = formsApp;
+})();
   window.formsApp = formsApp;
 })();
