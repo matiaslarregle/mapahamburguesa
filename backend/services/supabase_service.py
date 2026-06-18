@@ -34,6 +34,15 @@ class SupabaseService:
             logger.error(f"Error get_profile({user_id}): {e}")
             return None
 
+    async def get_user_email(self, user_id: UUID) -> Optional[str]:
+        """Obtiene el email de un usuario desde auth.users (requiere service_role)."""
+        try:
+            res = self.db.auth.admin.get_user_by_id(str(user_id))
+            return res.user.email if res and res.user else None
+        except Exception as e:
+            logger.error(f"Error get_user_email({user_id}): {e}")
+            return None
+
     async def upsert_profile(self, user_id: UUID, data: Dict[str, Any]) -> Dict[str, Any]:
         """Crea o actualiza un profile (usado por callback OAuth)."""
         res = (
