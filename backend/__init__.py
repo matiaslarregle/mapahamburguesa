@@ -1,0 +1,1 @@
+"""MapaHamburguesa backend package."""

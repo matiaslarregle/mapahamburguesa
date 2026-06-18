@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin · MapaHamburguesa</title>
+
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🍔%3C/text%3E%3C/svg%3E" />
+</head>
+
+<body class="admin-body">
+  <header class="admin-header">
+    <h1>🛠️ Panel de moderación</h1>
+    <div class="admin-user">
+      <span id="admin-user-name">Cargando…</span>
+      <a href="index.html" class="btn btn-ghost">← Volver al mapa</a>
+      <button id="btn-admin-logout" class="btn btn-secondary">Salir</button>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <nav class="admin-tabs">
+    <button class="tab active" data-tab="dashboard">📊 Dashboard</button>
+    <button class="tab" data-tab="places">🍔 Locales pendientes <span id="badge-places" class="badge hidden">0</span></button>
+    <button class="tab" data-tab="suggestions">✏️ Sugerencias <span id="badge-suggestions" class="badge hidden">0</span></button>
+  </nav>
+
+  <!-- ========== Tab: Dashboard ========== -->
+  <section id="tab-dashboard" class="tab-content active">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="stat-places-approved">–</div>
+        <div class="stat-label">Locales aprobados</div>
+      </div>
+      <div class="stat-card stat-pending">
+        <div class="stat-value" id="stat-places-pending">–</div>
+        <div class="stat-label">Locales pendientes</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-suggestions-pending">–</div>
+        <div class="stat-label">Sugerencias pendientes</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="stat-users">–</div>
+        <div class="stat-label">Usuarios registrados</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== Tab: Places pendientes ========== -->
+  <section id="tab-places" class="tab-content">
+    <h2>Locales pendientes de aprobación</h2>
+    <div id="pending-places-list" class="card-list">
+      <div class="loading">Cargando…</div>
+    </div>
+  </section>
+
+  <!-- ========== Tab: Suggestions pendientes ========== -->
+  <section id="tab-suggestions" class="tab-content">
+    <h2>Sugerencias de edición pendientes</h2>
+    <div id="pending-suggestions-list" class="card-list">
+      <div class="loading">Cargando…</div>
+    </div>
+  </section>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>window.API_BASE_URL = "http://localhost:8000";</script>
+  <script src="js/supabaseClient.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/api.js"></script>
+
+  <!-- Lógica del admin (viene en Parte 6) -->
+    <script src="js/admin.js"></script>
+
+</body>
+  <script>
+    window.toast = function (message, type = "info") {
+      const el = document.getElementById("toast");
+      el.textContent = message;
+      el.className = "toast";
+      if (type === "error") el.classList.add("toast-error");
+      if (type === "success") el.classList.add("toast-success");
+      el.classList.remove("hidden");
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => el.classList.add("hidden"), 3500);
+    };
+  </script>
+</html>
