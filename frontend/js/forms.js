@@ -179,31 +179,24 @@
             throw new Error("Elegí un rating con las estrellas");
           }
           const placeId = payload.place_id;
-          // 1. Crear o editar la review
-          const editReviewId = e.target.dataset.editReviewId;
-          let review;
-          if (editReviewId) {
-            review = await window.api.reviews.update(placeId, editReviewId, {
-              rating: Number(payload.rating),
-              comment: payload.comment,
-            });
-            delete e.target.dataset.editReviewId;
-            document.querySelector("#modal-review h2").textContent = "⭐ Dejar review";
-          } else {
-            review = await window.api.reviews.create(placeId, {
-              rating: Number(payload.rating),
-              comment: payload.comment,
-              cf_turnstile_token: payload.cf_turnstile_token,
-            });
-          }
+          // 1. Crear la review
+          const review = await window.api.reviews.create(placeId, {
+            rating: Number(payload.rating),
+            comment: payload.comment,
+            cf_turnstile_token: payload.cf_turnstile_token,
+          });
           // 2. Si hay foto, subirla
           const photoInput = document.getElementById("review-photo-input");
           const file = photoInput?.files?.[0];
           if (file) {
             try {
-              const resized = window.imageResize ? await window.imageResize(file) : file;
+              const resized = await window.imageResizer?.resize(file) || file;
               const formData = new FormData();
               formData.append("file", resized);
+              // Token fresco para el upload de foto
+              let photoToken = "";
+              try { photoToken = await window.cfTurnstile?.getToken?.(e.target) || ""; } catch(_) {}
+              formData.append("cf_turnstile_token", photoToken);
               await window.api.photos.uploadWithFormData(placeId, formData);
             } catch (photoErr) {
               console.warn("Review publicada pero falló la foto:", photoErr);
@@ -226,32 +219,6 @@
     // ============================================================
     // MODAL: SUGERENCIA DE EDICIÓN
     // ============================================================
-    openReviewEditModal(placeId, reviewId) {
-      const form = document.getElementById("form-review");
-      // Buscar datos actuales de la review en el DOM
-      const reviewEl = document.querySelector(`[data-review-id="${reviewId}"]`);
-      const comment = reviewEl?.querySelector(".review-comment")?.textContent?.trim() || "";
-      const starsText = reviewEl?.querySelector(".review-stars")?.textContent || "";
-      const rating = (starsText.match(/★/g) || []).length;
-
-      form.elements["place_id"].value = placeId;
-      form.elements["comment"].value = comment;
-      form.dataset.editReviewId = reviewId;
-
-      document.querySelector("#modal-review h2").textContent = "✏️ Editar review";
-
-      this.previewStars(rating, false);
-      form.elements["rating"].value = rating;
-
-      // Limpiar foto
-      const photoInput = document.getElementById("review-photo-input");
-      const photoPreview = document.getElementById("review-photo-preview");
-      if (photoInput) photoInput.value = "";
-      if (photoPreview) photoPreview.style.display = "none";
-
-      this.showModal("modal-review");
-    },
-
     openSuggestionModal(placeId) {
       const form = document.getElementById("form-suggestion");
       form.elements["place_id"].value = placeId;
@@ -483,5 +450,7 @@
     },
   };
 
+  window.formsApp = formsApp;
+})();
   window.formsApp = formsApp;
 })();
