@@ -191,8 +191,19 @@
         </div>
         <label>Dirección *<input name="address" required /></label>
         <div class="form-row">
-          <label>Ciudad *<input name="city" required /></label>
-          <label>Partido *<input name="partido" required /></label>
+          <label>Partido *
+            <select name="partido" id="form-partido" required>
+              <option value="">— Seleccioná —</option>
+              <option value="Almirante Brown">Almirante Brown</option>
+              <option value="Lanús">Lanús</option>
+              <option value="Lomas de Zamora">Lomas de Zamora</option>
+            </select>
+          </label>
+          <label>Localidad *
+            <select name="city" id="form-city" required>
+              <option value="">— Seleccioná partido —</option>
+            </select>
+          </label>
         </div>
         <div class="form-row">
           <label>Latitud *<input name="lat" type="number" step="any" required /></label>
@@ -411,8 +422,8 @@
           user.avatar_url ||
           `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=e85d04&color=fff`;
         document.getElementById("user-name").textContent = user.name;
+        btnAdd.classList.remove("hidden");
         if (window.auth.isModerator(user)) {
-          btnAdd.classList.remove("hidden");
           btnAdmin?.classList.remove("hidden");
         }
       } else {
@@ -430,6 +441,20 @@
       window.auth.logout()
     );
 
+
+    // ============ LOCALIDADES POR PARTIDO ============
+    const LOCALIDADES = {
+      "Almirante Brown": ["Adrogué","Burzaco","Claypole","Don Orione","Glew","José Mármol","Longchamps","Malvinas Argentinas","Ministro Rivadavia","Monte Grande","Rafael Calzada","San Francisco de Asís","Solano"],
+      "Lanús": ["Gerli","Lanús Este","Lanús Oeste","Monte Chingolo","Remedios de Escalada","Valentín Alsina"],
+      "Lomas de Zamora": ["Banfield","Llavallol","Lomas de Zamora","Mármol","Temperley","Turdera","Villa Centenario","Villa Fiorito"]
+    };
+    document.getElementById("form-partido")?.addEventListener("change", function () {
+      const citySelect = document.getElementById("form-city");
+      const localidades = LOCALIDADES[this.value] || [];
+      citySelect.innerHTML = localidades.length
+        ? localidades.map(l => `<option value="${l}">${l}</option>`).join("")
+        : '<option value="">— Seleccioná partido primero —</option>';
+    });
     // ============ INIT ============
     document.addEventListener("DOMContentLoaded", async () => {
       window.mapApp.init();
