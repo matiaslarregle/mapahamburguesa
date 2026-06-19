@@ -193,6 +193,10 @@
               const resized = await window.imageResizer?.resize(file) || file;
               const formData = new FormData();
               formData.append("file", resized);
+              // Token fresco para el upload de foto
+              let photoToken = "";
+              try { photoToken = await window.cfTurnstile?.getToken?.(e.target) || ""; } catch(_) {}
+              formData.append("cf_turnstile_token", photoToken);
               await window.api.photos.uploadWithFormData(placeId, formData);
             } catch (photoErr) {
               console.warn("Review publicada pero falló la foto:", photoErr);
@@ -446,5 +450,7 @@
     },
   };
 
+  window.formsApp = formsApp;
+})();
   window.formsApp = formsApp;
 })();
