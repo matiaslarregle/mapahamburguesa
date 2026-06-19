@@ -5,7 +5,7 @@ Mantenemos la paridad 1:1 con el schema de Supabase.
 from datetime import datetime
 from typing import Optional, List, Dict, Literal
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ====================== Enums / Literals ======================
@@ -91,6 +91,12 @@ class PlaceResponse(PlaceBase):
     created_at: datetime
     updated_at: datetime
 
+    @field_validator("avg_rating", mode="before")
+    @classmethod
+    def default_avg_rating(cls, v):
+        # Locales sin reviews todavía vienen con avg_rating=None desde la DB
+        return 0 if v is None else v
+
     class Config:
         from_attributes = True
 
@@ -174,9 +180,14 @@ class AssistantPlaceSuggestion(BaseModel):
     name: str
     address: str
     partido: str
-    avg_rating: float
+    avg_rating: float = 0
     price_range: Optional[PriceRange] = None
     place_type: Optional[PlaceType] = None
+
+    @field_validator("avg_rating", mode="before")
+    @classmethod
+    def default_avg_rating(cls, v):
+        return 0 if v is None else v
 
 
 class AssistantResponse(BaseModel):
