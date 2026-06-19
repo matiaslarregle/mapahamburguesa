@@ -452,5 +452,3 @@
 
   window.formsApp = formsApp;
 })();
-  window.formsApp = formsApp;
-})();
