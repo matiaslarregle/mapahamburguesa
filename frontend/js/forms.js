@@ -5,6 +5,26 @@
  */
 (function () {
   const formsApp = {
+    openReviewEditModal(placeId, reviewId) {
+      // Buscar la review en el sidebar actual
+      const reviews = window.sidebarApp?.currentPlace ? null : null;
+      const reviewEl = document.querySelector(`[data-review-id="${reviewId}"]`);
+      const stars = reviewEl?.querySelectorAll(".review-stars")?.length || 0;
+      const comment = reviewEl?.querySelector(".review-comment")?.textContent || "";
+
+      const form = document.getElementById("form-review");
+      form.elements["place_id"].value = placeId;
+      form.elements["comment"].value = comment;
+      form.elements["rating"].value = "";
+
+      // Marcar el modal como edición
+      form.dataset.editReviewId = reviewId;
+      document.querySelector("#modal-review h2").textContent = "✏️ Editar review";
+
+      this.previewStars(0, true);
+      this.showModal("modal-review");
+    },
+
     // ============================================================
     // INIT
     // ============================================================
@@ -179,18 +199,29 @@
             throw new Error("Elegí un rating con las estrellas");
           }
           const placeId = payload.place_id;
-          // 1. Crear la review
-          const review = await window.api.reviews.create(placeId, {
-            rating: Number(payload.rating),
-            comment: payload.comment,
-            cf_turnstile_token: payload.cf_turnstile_token,
-          });
+          // 1. Crear o editar la review
+          const editReviewId = e.target.dataset.editReviewId;
+          let review;
+          if (editReviewId) {
+            review = await window.api.reviews.update(placeId, editReviewId, {
+              rating: Number(payload.rating),
+              comment: payload.comment,
+            });
+            delete e.target.dataset.editReviewId;
+            document.querySelector("#modal-review h2").textContent = "⭐ Dejar review";
+          } else {
+            review = await window.api.reviews.create(placeId, {
+              rating: Number(payload.rating),
+              comment: payload.comment,
+              cf_turnstile_token: payload.cf_turnstile_token,
+            });
+          }
           // 2. Si hay foto, subirla
           const photoInput = document.getElementById("review-photo-input");
           const file = photoInput?.files?.[0];
           if (file) {
             try {
-              const resized = await window.imageResizer?.resize(file) || file;
+              const resized = window.imageResize ? await window.imageResize(file) : file;
               const formData = new FormData();
               formData.append("file", resized);
               await window.api.photos.uploadWithFormData(placeId, formData);
@@ -200,7 +231,7 @@
           }
           return review;
         },
-        successMessage: "⭐ Review publicada",
+        successMessage: e.target.dataset.editReviewId ? "✏️ Review actualizada" : "⭐ Review publicada",
         onSuccess: async () => {
           // Refrescar el sidebar y el mapa
           const placeId = e.target.elements["place_id"].value;
@@ -446,5 +477,7 @@
     },
   };
 
+  window.formsApp = formsApp;
+})();
   window.formsApp = formsApp;
 })();
