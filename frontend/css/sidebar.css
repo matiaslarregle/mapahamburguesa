@@ -1,310 +1,541 @@
-/* ============================================
-   Sidebar de detalle de local
-   ============================================ */
-.sidebar {
-  position: fixed;
-  top: var(--header-height);
-  right: 0;
-  width: var(--sidebar-width);
-  max-width: 90vw;
-  height: calc(100vh - var(--header-height));
-  background: var(--color-surface);
-  border-left: 1px solid var(--color-border);
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
-  z-index: 1100;
-  overflow-y: auto;
-  transform: translateX(0);
-  transition: transform 0.3s ease;
-}
+/**
+ * Sidebar: panel de detalle de un local.
+ * Estructura modular: estados (loading/error/empty/ok) + render separado.
+ * Expone: window.sidebarApp
+ */
+(function () {
+  const sidebarApp = {
+    // ---------- Refs ----------
+    el: null,
+    overlayEl: null,
+    contentEl: null,
+    currentPlaceId: null,
+    currentPlace: null,
+    currentUser: null,
+    galleryIndex: 0,
+    galleryImages: [],
 
-.sidebar.hidden { transform: translateX(100%); }
+    // ====================== INIT ======================
+    init() {
+      this.el = document.getElementById("sidebar");
+      this.overlayEl = document.getElementById("sidebar-overlay");
+      this.contentEl = document.getElementById("sidebar-content");
 
-.sidebar-overlay {
-  position: fixed;
-  top: var(--header-height);
-  left: var(--filters-width);
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 1000;
-  cursor: pointer;
-}
+      // Cerrar sidebar
+      document
+        .getElementById("btn-close-sidebar")
+        .addEventListener("click", () => this.close());
+      this.overlayEl.addEventListener("click", () => this.close());
+      document.addEventListener("keydown", (e) => {
+        if (
+          e.key === "Escape" &&
+          !this.el.classList.contains("hidden") &&
+          this.isTopModal()  // no cerrar si hay un modal encima
+        ) {
+          this.close();
+        }
+      });
 
-#sidebar-content { padding: 24px; }
-.sidebar-loading { padding: 40px; text-align: center; color: var(--color-text-muted); }
+      // Galería lightbox
+      this.initGallery();
+    },
 
-/* Header del sidebar */
-.sidebar h1.place-name {
-  margin: 0 0 4px 0;
-  font-size: 24px;
-  color: var(--color-text);
-}
-.place-address {
-  color: var(--color-text-muted);
-  font-size: 14px;
-  margin: 0 0 16px 0;
-}
+    isTopModal() {
+      const openModals = [...document.querySelectorAll(".modal:not(.hidden)")];
+      return openModals.length === 0;
+    },
 
-/* Rating */
-.rating-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-.rating-stars { color: #ffc107; font-size: 18px; }
-.rating-number { font-weight: 700; font-size: 18px; }
-.rating-count { color: var(--color-text-muted); font-size: 13px; }
+    // ====================== OPEN / CLOSE ======================
+    async open(placeId) {
+      this.currentPlaceId = placeId;
+      this.el.classList.remove("hidden");
+      this.overlayEl.classList.remove("hidden");
+      this.el.setAttribute("aria-hidden", "false");
+      this.renderLoading();
 
-/* Tags/badges */
-.tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
-.tag {
-  background: #f0f0f0;
-  color: var(--color-text);
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.tag.tag-open { background: #d1f7c4; color: #1b5e20; }
-.tag.tag-closed { background: #ffe0e0; color: #b71c1c; }
-.tag.tag-delivery { background: #d0f0ff; color: #01579b; }
+      try {
+        const [place, user] = await Promise.all([
+          window.api.places.get(placeId),
+          window.auth ? window.auth.getCurrentUser() : Promise.resolve(null),
+        ]);
 
-/* Secciones */
-.sidebar-section {
-  margin: 24px 0;
-  padding-top: 20px;
-  border-top: 1px solid var(--color-border);
-}
-.sidebar-section h3 {
-  font-size: 15px;
-  margin: 0 0 12px 0;
-  color: var(--color-secondary);
-}
+        if (!place) throw new Error("Local no encontrado");
 
-.contact-link {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--color-text);
-  text-decoration: none;
-  padding: 6px 0;
-  font-size: 14px;
-}
-.contact-link:hover { color: var(--color-primary); }
+        this.currentPlace = place;
+        this.currentUser = user;
 
-/* Galería */
-.photo-gallery {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 8px;
-}
-.photo-gallery img {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-  border-radius: var(--radius);
-  cursor: pointer;
-  transition: transform 0.2s;
-}
-.photo-gallery img:hover { transform: scale(1.05); }
+        // Traer fotos y reviews en paralelo
+        const [photos, reviews] = await Promise.all([
+          window.api.photos.list(placeId).catch(() => []),
+          window.api.reviews.list(placeId).catch(() => []),
+        ]);
 
-/* Reviews list */
-.review-item {
-  padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-.review-item:last-child { border-bottom: none; }
-.review-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-.review-author { font-weight: 600; font-size: 13px; }
-.review-date { color: var(--color-text-muted); font-size: 11px; }
-.review-comment { font-size: 14px; line-height: 1.4; margin: 6px 0 0 0; }
+        this.render(place, photos, reviews);
+      } catch (err) {
+        console.error("Error abriendo sidebar:", err);
+        this.renderError(err.message);
+      }
+    },
 
-/* Acciones del sidebar */
-.sidebar-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 16px 0;
-  padding: 16px 0;
-  border-top: 1px solid var(--color-border);
-  border-bottom: 1px solid var(--color-border);
-}
+    close() {
+      this.el.classList.add("hidden");
+      this.overlayEl.classList.add("hidden");
+      this.el.setAttribute("aria-hidden", "true");
+      this.currentPlaceId = null;
+      this.currentPlace = null;
+    },
 
-/* Schedule */
-.schedule { display: grid; grid-template-columns: 80px 1fr; gap: 4px 12px; font-size: 13px; }
-.schedule-day { font-weight: 600; color: var(--color-text-muted); }
-.schedule-time { color: var(--color-text); }
+    // ====================== ESTADOS DE RENDER ======================
+    renderLoading() {
+      this.contentEl.innerHTML = `
+        <div class="sidebar-loading">
+          <div class="spinner"></div>
+          <p>Cargando…</p>
+        </div>`;
+    },
 
-/* Assistant chat */
-.assistant-messages {
-  max-height: 400px;
-  overflow-y: auto;
-  padding: 12px;
-  background: #f5f5f5;
-  border-radius: var(--radius);
-  margin-bottom: 12px;
-}
-.assistant-msg {
-  padding: 8px 12px;
-  border-radius: 16px;
-  margin-bottom: 8px;
-  font-size: 14px;
-  max-width: 85%;
-}
-.assistant-bot { background: white; border: 1px solid var(--color-border); }
-.assistant-user { background: var(--color-primary); color: white; margin-left: auto; }
-.assistant-form { display: flex; gap: 8px; }
-.assistant-form input { flex: 1; }
+    renderError(message) {
+      this.contentEl.innerHTML = `
+        <div class="sidebar-error">
+          <div class="emoji">😕</div>
+          <p>${this.esc(message)}</p>
+          <button class="btn btn-secondary" onclick="window.sidebarApp.close()">Cerrar</button>
+        </div>`;
+    },
 
-/* ============================================
-   Sidebar — estados (loading / error / empty)
-   ============================================ */
-.sidebar-loading {
-  padding: 60px 20px;
-  text-align: center;
-  color: var(--color-text-muted);
-}
-.sidebar-loading .spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid #f0f0f0;
-  border-top-color: var(--color-primary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 12px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+    render(place, photos, reviews) {
+      const userHasReview = this.currentUser
+        ? reviews.find((r) => r.user_id === this.currentUser.id)
+        : null;
+      const isOpen = this.isOpenNow(place.schedule);
+      const html = `
+        ${this.renderHeader(place)}
+        ${this.renderRating(place)}
+        ${this.renderTags(place, isOpen)}
+        ${this.renderActions(userHasReview)}
+        ${this.renderContact(place)}
+        ${this.renderSchedule(place)}
+        ${this.renderPayments(place)}
+        ${this.renderHighlights(place)}
+        ${this.renderGallery(photos)}
+        ${this.renderReviews(reviews, userHasReview)}
+        ${this.renderFooter(place)}
+      `;
+      this.contentEl.innerHTML = html;
+      this.bindActions();
+    },
 
-.sidebar-error {
-  padding: 60px 20px;
-  text-align: center;
-}
-.sidebar-error .emoji { font-size: 48px; margin-bottom: 12px; }
-.sidebar-error p { color: var(--color-danger); margin-bottom: 20px; }
+    // ====================== SUB-RENDERS ======================
+    renderHeader(place) {
+      return `
+        <h1 id="sidebar-title" class="place-name">${this.esc(place.name)}</h1>
+        <p class="place-address">📍 ${this.esc(place.address)}, ${this.esc(place.city)} (${this.esc(place.partido)})</p>
+      `;
+    },
 
-.reviews-empty {
-  color: var(--color-text-muted);
-  font-style: italic;
-  padding: 12px 0;
-}
+    renderRating(place) {
+      const rating = place.avg_rating || 0;
+      const stars = "★".repeat(Math.round(rating)) + "☆".repeat(5 - Math.round(rating));
+      return `
+        <div class="rating-bar">
+          <span class="rating-stars">${stars}</span>
+          <span class="rating-number">${rating.toFixed(1)}</span>
+          <span class="rating-count">(${place.review_count || 0} reviews)</span>
+        </div>
+      `;
+    },
 
-/* Review item — autor + avatar */
-.review-author-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.review-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-.review-avatar-default {
-  background: var(--color-primary);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 14px;
-}
-.review-author {
-  display: block;
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--color-text);
-}
-.review-date {
-  display: block;
-  font-size: 11px;
-  color: var(--color-text-muted);
-}
-.review-actions {
-  display: flex;
-  gap: 4px;
-  margin-top: 6px;
-}
+    renderTags(place, isOpen) {
+      return `
+        <div class="tag-row">
+          ${place.place_type  ? `<span class="tag">${this.typeLabel(place.place_type)}</span>` : ""}
+          ${place.price_range ? `<span class="tag">${this.priceLabel(place.price_range)}</span>` : ""}
+          ${isOpen !== null   ? `<span class="tag ${isOpen ? "tag-open" : "tag-closed"}">${isOpen ? "🟢 Abierto" : "🔴 Cerrado"}</span>` : ""}
+          ${place.has_delivery ? `<span class="tag tag-delivery">🛵 Delivery</span>` : ""}
+        </div>
+      `;
+    },
 
-/* Schedule — resalta día actual */
-.schedule-today {
-  color: var(--color-primary) !important;
-  font-weight: 700 !important;
-}
+    renderActions(userHasReview) {
+      if (!this.currentUser) {
+        return `
+          <div class="sidebar-actions">
+            <button class="btn btn-secondary btn-block" id="btn-login-from-sidebar">
+              🔐 Iniciá sesión para dejar review, sugerir cambios o subir fotos
+            </button>
+          </div>
+        `;
+      }
+      return `
+        <div class="sidebar-actions">
+          <button class="btn btn-primary" data-action="review" ${userHasReview ? "disabled title='Ya dejaste tu review'" : ""}>
+            ${userHasReview ? "✓ Ya dejaste review" : "⭐ Dejar review"}
+          </button>
+          <button class="btn btn-secondary" data-action="suggest">✏️ Sugerir</button>
 
-/* Sidebar footer */
-.sidebar-footer {
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid var(--color-border);
-  text-align: center;
-}
-.sidebar-source {
-  color: var(--color-text-muted);
-  font-size: 12px;
-  font-style: italic;
-  margin-bottom: 12px;
-}
+        </div>
+      `;
+    },
 
-/* ============================================
-   Lightbox / Gallery modal
-   ============================================ */
-.modal-gallery {
-  background: rgba(0, 0, 0, 0.95);
-  max-width: 90vw;
-  max-height: 90vh;
-  width: auto;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-#modal-gallery .btn-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 10;
-  color: white;
-  background: rgba(0, 0, 0, 0.5);
-}
-#modal-gallery .btn-close:hover { background: rgba(0, 0, 0, 0.8); }
-#gallery-image {
-  max-width: 100%;
-  max-height: 85vh;
-  object-fit: contain;
-  border-radius: 4px;
-}
-.gallery-nav {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  border: none;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  font-size: 28px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 5;
-}
-.gallery-nav:hover { background: rgba(0, 0, 0, 0.8); }
-.gallery-prev { left: 20px; }
-.gallery-next { right: 20px; }
-.gallery-counter {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: white;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 13px;
-}
+    renderContact(place) {
+      const phoneClean = (place.phone || "").replace(/\D/g, "");
+      const waLink = phoneClean ? `https://wa.me/${phoneClean}` : null;
+      const igUser = (place.instagram || "").replace("@", "");
+      const igLink = igUser ? `https://instagram.com/${igUser}` : null;
+
+      if (!place.phone && !place.website && !igLink) return "";
+
+      return `
+        <div class="sidebar-section">
+          <h3>📞 Contacto</h3>
+          ${place.phone  ? `<a class="contact-link" href="tel:${this.esc(place.phone)}">📞 ${this.esc(place.phone)}</a>` : ""}
+          ${waLink       ? `<a class="contact-link" href="${waLink}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ""}
+          ${place.website ? `<a class="contact-link" href="${this.esc(place.website)}" target="_blank" rel="noopener">🌐 Sitio web</a>` : ""}
+          ${igLink       ? `<a class="contact-link" href="${igLink}" target="_blank" rel="noopener">📷 @${this.esc(igUser)}</a>` : ""}
+        </div>
+      `;
+    },
+
+    renderSchedule(place) {
+      if (!place.schedule || !Object.keys(place.schedule).length) return "";
+      const days = [
+        { key: "lun", label: "Lunes" },
+        { key: "mar", label: "Martes" },
+        { key: "mie", label: "Miércoles" },
+        { key: "jue", label: "Jueves" },
+        { key: "vie", label: "Viernes" },
+        { key: "sab", label: "Sábado" },
+        { key: "dom", label: "Domingo" },
+      ];
+      const todayKey = ["dom", "lun", "mar", "mie", "jue", "vie", "sab"][new Date().getDay()];
+      return `
+        <div class="sidebar-section">
+          <h3>🕐 Horarios</h3>
+          <div class="schedule">
+            ${days
+              .map(
+                (d) => `
+              <span class="schedule-day ${d.key === todayKey ? "schedule-today" : ""}">${d.label}</span>
+              <span class="schedule-time">${this.esc(place.schedule[d.key] || "Cerrado")}</span>
+            `
+              )
+              .join("")}
+          </div>
+        </div>
+      `;
+    },
+
+    renderPayments(place) {
+      if (!place.payment_methods?.length) return "";
+      return `
+        <div class="sidebar-section">
+          <h3>💳 Acepta</h3>
+          <div class="tag-row">
+            ${place.payment_methods.map((m) => `<span class="tag">${this.paymentLabel(m)}</span>`).join("")}
+          </div>
+        </div>
+      `;
+    },
+
+    renderHighlights(place) {
+      if (!place.menu_highlights) return "";
+      return `
+        <div class="sidebar-section">
+          <h3>🍔 Lo que se destaca</h3>
+          <p>${this.esc(place.menu_highlights)}</p>
+        </div>
+      `;
+    },
+
+    renderGallery(photos) {
+      if (!photos.length) return "";
+      return `
+        <div class="sidebar-section">
+          <h3>📸 Fotos (${photos.length})</h3>
+          <div class="photo-gallery">
+            ${photos
+              .map(
+                (ph, i) =>
+                  `<img src="${ph.url}" alt="Foto ${i + 1}" loading="lazy" data-photo-index="${i}" />`
+              )
+              .join("")}
+          </div>
+        </div>
+      `;
+    },
+
+    renderReviews(reviews, userHasReview) {
+      const canEdit = userHasReview && this.currentUser;
+      return `
+        <div class="sidebar-section">
+          <h3>⭐ Reviews (${reviews.length})</h3>
+          ${reviews.length === 0
+            ? `<p class="reviews-empty">Todavía no hay reviews. ¡Sé el primero en opinar!</p>`
+            : reviews
+                .map((r) => this.renderReviewItem(r, canEdit))
+                .join("")
+          }
+        </div>
+      `;
+    },
+
+    renderReviewItem(r, canEdit) {
+      const author = r.profiles?.name || "Usuario";
+      const avatar = r.profiles?.avatar_url;
+      const date = new Date(r.created_at).toLocaleDateString("es-AR", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+      const isOwn = this.currentUser && r.user_id === this.currentUser.id;
+      const stars = "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
+      const photos = r.photos && r.photos.length > 0 ? r.photos : [];
+
+      return `
+        <div class="review-item" data-review-id="${r.id}">
+          <div class="review-header">
+            <div class="review-author-info">
+              ${avatar
+                ? `<img src="${avatar}" alt="" class="review-avatar" />`
+                : `<div class="review-avatar review-avatar-default">${author.charAt(0).toUpperCase()}</div>`
+              }
+              <div>
+                <span class="review-author">${this.esc(author)}${isOwn ? " (vos)" : ""}</span>
+                <span class="review-date">${date}</span>
+              </div>
+            </div>
+            <span class="review-stars">${stars}</span>
+          </div>
+          ${r.comment ? `<p class="review-comment">${this.esc(r.comment)}</p>` : ""}
+          ${photos.length > 0 ? `
+            <div class="review-photos">
+              ${photos.map((ph, idx) => `
+                <img src="${ph.url}" alt="Foto ${idx + 1}" class="review-photo" loading="lazy" />
+              `).join('')}
+            </div>
+          ` : ""}
+          ${isOwn ? `
+            <div class="review-actions">
+              <button class="btn btn-ghost btn-sm" data-review-action="edit" data-review-id="${r.id}">Editar</button>
+              <button class="btn btn-ghost btn-sm" data-review-action="delete" data-review-id="${r.id}">Borrar</button>
+            </div>
+          ` : ""}
+        </div>
+      `;
+    },
+
+    renderFooter(place) {
+      return `
+        <div class="sidebar-footer">
+          <p class="sidebar-source">Datos aportados por la comunidad 🍔</p>
+          <a href="https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}"
+             target="_blank" rel="noopener" class="btn btn-ghost btn-block">
+            🗺️ Ver en Google Maps
+          </a>
+        </div>
+      `;
+    },
+
+    // ====================== ACTIONS ======================
+    bindActions() {
+      // Botones [data-action] (review, suggest, photo)
+      this.contentEl.querySelectorAll("[data-action]").forEach((btn) => {
+        btn.addEventListener("click", () =>
+          this.handleAction(btn.dataset.action, btn)
+        );
+      });
+
+      // Login desde sidebar
+      this.contentEl
+        .querySelector("#btn-login-from-sidebar")
+        ?.addEventListener("click", () => window.auth.loginWithGoogle());
+
+      // Galería → lightbox
+      this.contentEl.querySelectorAll(".photo-gallery img").forEach((img) => {
+        img.addEventListener("click", () => {
+          this.galleryIndex = Number(img.dataset.photoIndex);
+          this.openGallery();
+        });
+      });
+
+      // Acciones de review (editar/borrar)
+      this.contentEl.querySelectorAll("[data-review-action]").forEach((btn) => {
+        btn.addEventListener("click", () =>
+          this.handleReviewAction(btn.dataset.reviewAction, btn.dataset.reviewId)
+        );
+      });
+    },
+
+    handleAction(action, btn) {
+      if (!this.currentUser) {
+        window.auth.loginWithGoogle();
+        return;
+      }
+      if (action === "review" && window.formsApp) {
+        window.formsApp.openReviewModal(this.currentPlaceId, btn);
+      }
+      if (action === "suggest" && window.formsApp) {
+        window.formsApp.openSuggestionModal(this.currentPlaceId);
+      }
+      if (action === "photo") {
+        this.uploadPhoto();
+      }
+    },
+
+    async handleReviewAction(action, reviewId) {
+      if (action === "delete") {
+        if (!confirm("¿Borrar tu review?")) return;
+        try {
+          await window.api.reviews.delete(this.currentPlaceId, reviewId);
+          window.toast("🗑️ Review eliminada", "success");
+          await this.open(this.currentPlaceId); // refresh
+          if (window.mapApp) await window.mapApp.loadPlaces();
+        } catch (err) {
+          window.toast("Error: " + err.message, "error");
+        }
+      }
+      if (action === "edit") {
+        // Abrir el modal de review pre-cargado
+        if (window.formsApp?.openReviewEditModal) {
+          window.formsApp.openReviewEditModal(this.currentPlaceId, reviewId);
+        } else {
+          window.toast("Edición de review no implementada", "info");
+        }
+      }
+    },
+
+    async uploadPhoto() {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          if (window.formsApp?.uploadPhoto) {
+            await window.formsApp.uploadPhoto(this.currentPlaceId, file);
+          } else {
+            let fileToUpload = file;
+            if (window.imageResize) {
+              fileToUpload = await window.imageResize(file);
+            }
+            await window.api.photos.upload(this.currentPlaceId, fileToUpload);
+            window.toast("📸 Foto subida con éxito", "success");
+            await this.open(this.currentPlaceId);
+          }
+        } catch (err) {
+          console.error("uploadPhoto error:", err);
+        }
+      };
+      input.click();
+    },
+
+    // ====================== GALLERY LIGHTBOX ======================
+    initGallery() {
+      const modal = document.getElementById("modal-gallery");
+      document.getElementById("gallery-prev")?.addEventListener("click", () =>
+        this.galleryNav(-1)
+      );
+      document.getElementById("gallery-next")?.addEventListener("click", () =>
+        this.galleryNav(1)
+      );
+      modal?.querySelectorAll("[data-close-modal]").forEach((btn) =>
+        btn.addEventListener("click", () => this.closeGallery())
+      );
+      document.addEventListener("keydown", (e) => {
+        if (modal?.classList.contains("hidden")) return;
+        if (e.key === "ArrowLeft") this.galleryNav(-1);
+        if (e.key === "ArrowRight") this.galleryNav(1);
+      });
+    },
+
+    openGallery() {
+      // Necesitamos el array de URLs → lo tomamos del render actual
+      this.galleryImages = [
+        ...this.contentEl.querySelectorAll(".photo-gallery img"),
+      ].map((img) => img.src);
+      if (!this.galleryImages.length) return;
+
+      document.getElementById("modal-gallery").classList.remove("hidden");
+      this.renderGalleryImage();
+    },
+
+    closeGallery() {
+      document.getElementById("modal-gallery").classList.add("hidden");
+    },
+
+    galleryNav(delta) {
+      this.galleryIndex =
+        (this.galleryIndex + delta + this.galleryImages.length) %
+        this.galleryImages.length;
+      this.renderGalleryImage();
+    },
+
+    renderGalleryImage() {
+      const url = this.galleryImages[this.galleryIndex];
+      document.getElementById("gallery-image").src = url;
+      document.getElementById("gallery-counter").textContent =
+        `${this.galleryIndex + 1} / ${this.galleryImages.length}`;
+    },
+
+    // ====================== HELPERS ======================
+    isOpenNow(schedule) {
+      if (!schedule) return null;
+      const days = ["dom", "lun", "mar", "mie", "jue", "vie", "sab"];
+      const now = new Date();
+      const ar = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+      const dayKey = days[ar.getUTCDay()];
+      const todayHours = schedule[dayKey];
+      if (!todayHours || todayHours.toLowerCase() === "cerrado") return false;
+      const match = todayHours.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+      if (!match) return null;
+      const [, h1, m1, h2, m2] = match.map(Number);
+      const cur = ar.getUTCHours() * 60 + ar.getUTCMinutes();
+      const from = h1 * 60 + m1;
+      const to = h2 * 60 + m2;
+      return cur >= from && cur <= to;
+    },
+
+    typeLabel(t) {
+      return (
+        {
+          fast_food: "🍔 Fast food",
+          gourmet: "👨‍🍳 Gourmet",
+          dark_kitchen: "🌙 Dark kitchen",
+          food_truck: "🚚 Food truck",
+          other: "📦 Otro",
+        }[t] || t
+      );
+    },
+
+    priceLabel(p) {
+      return { cheap: "💰 Barato", mid: "💵 Medio", expensive: "💎 Caro" }[p] || p;
+    },
+
+    paymentLabel(m) {
+      return (
+        {
+          efectivo: "💵 Efectivo",
+          debito: "💳 Débito",
+          credito: "💳 Crédito",
+          mp: "🟦 MercadoPago",
+          uala: "🟨 Ualá",
+          transferencia: "🏦 Transferencia",
+        }[m] || m
+      );
+    },
+
+    esc(s) {
+      if (s === null || s === undefined) return "";
+      return String(s).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      }[c]));
+    },
+  };
+
+  window.sidebarApp = sidebarApp;
+})();
