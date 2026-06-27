@@ -117,8 +117,8 @@
         ${this.renderSchedule(place)}
         ${this.renderPayments(place)}
         ${this.renderHighlights(place)}
-        ${this.renderGallery(photos)}
-        ${this.renderReviews(reviews, userHasReview)}
+        ${this.renderGallery(photos.filter(p => !p.review_id))}
+        ${this.renderReviews(reviews, userHasReview, photos)}
         ${this.renderFooter(place)}
       `;
       this.contentEl.innerHTML = html;
@@ -264,7 +264,7 @@
       `;
     },
 
-    renderReviews(reviews, userHasReview) {
+    renderReviews(reviews, userHasReview, photos = []) {
       const canEdit = userHasReview && this.currentUser;
       return `
         <div class="sidebar-section">
@@ -272,14 +272,14 @@
           ${reviews.length === 0
             ? `<p class="reviews-empty">Todavía no hay reviews. ¡Sé el primero en opinar!</p>`
             : reviews
-                .map((r) => this.renderReviewItem(r, canEdit))
+                .map((r) => this.renderReviewItem(r, canEdit, photos.filter(p => p.review_id === r.id)))
                 .join("")
           }
         </div>
       `;
     },
 
-    renderReviewItem(r, canEdit) {
+    renderReviewItem(r, canEdit, reviewPhotos = []) {
       const author = r.profiles?.name || "Usuario";
       const avatar = r.profiles?.avatar_url;
       const date = new Date(r.created_at).toLocaleDateString("es-AR", {
@@ -306,6 +306,10 @@
             <span class="review-stars">${stars}</span>
           </div>
           ${r.comment ? `<p class="review-comment">${this.esc(r.comment)}</p>` : ""}
+          ${reviewPhotos.length ? `
+            <div class="review-photos">
+              ${reviewPhotos.map((ph) => `<img src="${ph.url}" alt="Foto de review" class="review-photo" loading="lazy" />`).join("")}
+            </div>` : ""}
           ${isOwn ? `
             <div class="review-actions">
               <button class="btn btn-ghost btn-sm" data-review-action="edit" data-review-id="${r.id}">Editar</button>
