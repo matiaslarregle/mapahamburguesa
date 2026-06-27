@@ -3,21 +3,12 @@ Router de reviews: 1 review por usuario por local.
 """
 import logging
 from uuid import UUID
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    status,
-    UploadFile,
-    File
-)
-from ..dependencies import get_current_user, get_db_service, verify_turnstile, get_storage
+from fastapi import APIRouter, Depends, HTTPException, status
+from ..dependencies import get_current_user, get_db_service, verify_turnstile
 from ..schemas import (
     ReviewCreate, ReviewUpdate, ReviewResponse, ReviewWithUser, MessageResponse,
-    ReviewWithPhotos, PhotoResponse,
 )
 from ..services.supabase_service import SupabaseService
-from ..services.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -26,25 +17,14 @@ router = APIRouter()
 # ====================== LIST reviews de un local ======================
 @router.get(
     "/{place_id}/reviews",
-    response_model=list[ReviewWithPhotos],
+    response_model=list[ReviewWithUser],
     summary="Reviews de un local",
 )
 async def list_reviews(
     place_id: UUID,
     svc: SupabaseService = Depends(get_db_service),
 ):
-    """Lista reviews de un lugar con sus fotos asociadas"""
-    reviews = await svc.list_reviews(place_id)
-    photos = await svc.list_photos(place_id)
-    
-    # Asociar fotos a cada review
-    result = []
-    for review in reviews:
-        review_photos = [p for p in photos if str(p.get("review_id")) == str(review["id"])]
-        review["photos"] = review_photos
-        result.append(review)
-    
-    return result
+    return await svc.list_reviews(place_id)
 
 
 # ====================== POST crear review ======================
@@ -141,55 +121,3 @@ async def delete_review(
     if not ok:
         raise HTTPException(status_code=500, detail="No se pudo borrar la review")
     return MessageResponse(message="Review eliminada")
-
-
-# ====================== FOTO review ======================
-
-@router.post(
-    "/{place_id}/reviews/{review_id}/photo",
-    summary="Subir foto de review",
-)
-async def upload_review_photo(
-    place_id: UUID,
-    review_id: UUID,
-    file: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user),
-    svc: SupabaseService = Depends(get_db_service),
-    storage: StorageService = Depends(get_storage),
-):
-
-    review = await svc.get_review(review_id)
-
-    if not review:
-        raise HTTPException(
-            status_code=404,
-            detail="Review no encontrada"
-        )
-
-    if review["user_id"] != str(current_user["id"]):
-        raise HTTPException(
-            status_code=403,
-            detail="No podés modificar esta review"
-        )
-
-
-    content = await file.read()
-
-    url = await storage.upload_photo(
-        place_id=place_id,
-        user_id=current_user["id"],
-        file_content=content,
-        filename=file.filename,
-        content_type=file.content_type,
-    )
-
-
-    photo = await svc.create_photo(
-        place_id,
-        current_user["id"],
-        url,
-        False,
-        review_id
-    )
-
-    return photo
