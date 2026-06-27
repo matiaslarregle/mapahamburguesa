@@ -354,7 +354,7 @@ class SupabaseService:
                     "user_id": str(user_id),
                     "url": url,
                     "is_cover": is_cover,
-                    "review_id": str(review_id) if review_id else None,
+                    "review_id": str(review_id) if review_id else None,  # ← YA ESTÁ, solo verifica
                 }
             )
             .execute()
