@@ -293,7 +293,7 @@
 
         // 5) Subir (usamos la misma signature de api.photos.upload,
         //    pero la modificamos para aceptar un FormData custom)
-        await window.api.photos.uploadWithFormData(placeId, formData);
+       await window.api.reviews.uploadPhoto(placeId, review.id, formData );
 
         window.toast("📸 Foto subida con éxito", "success");
 
