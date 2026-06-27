@@ -185,23 +185,40 @@
             comment: payload.comment,
             cf_turnstile_token: payload.cf_turnstile_token,
           });
-          // 2. Si hay foto, subirla
+          // 2. Si hay foto, asociarla a la review
           const photoInput = document.getElementById("review-photo-input");
           const file = photoInput?.files?.[0];
+
           if (file) {
             try {
+
               const resized = await window.imageResizer?.resize(file) || file;
+
               const formData = new FormData();
               formData.append("file", resized);
-              // Token fresco para el upload de foto
+
               let photoToken = "";
-              try { photoToken = await window.cfTurnstile?.getToken?.(e.target) || ""; } catch(_) {}
+              try {
+                photoToken = await window.cfTurnstile?.getToken?.(e.target) || "";
+              } catch(_) {}
+
               formData.append("cf_turnstile_token", photoToken);
-              await window.api.photos.uploadWithFormData(placeId, formData);
-            } catch (photoErr) {
-              console.warn("Review publicada pero falló la foto:", photoErr);
-            }
-          }
+
+
+              await window.api.reviews.uploadPhoto(
+                placeId,
+                review.id,
+                formData
+              );
+
+
+  } catch (photoErr) {
+    console.warn(
+      "Review publicada pero falló la foto:",
+      photoErr
+    );
+  }
+}
           return review;
         },
         successMessage: "⭐ Review publicada",
