@@ -11,11 +11,12 @@ from fastapi import (
     UploadFile,
     File
 )
-from ..dependencies import get_current_user, get_db_service, verify_turnstile
+from ..dependencies import get_current_user, get_db_service, verify_turnstile, get_storage
 from ..schemas import (
     ReviewCreate, ReviewUpdate, ReviewResponse, ReviewWithUser, MessageResponse,
 )
 from ..services.supabase_service import SupabaseService
+from ..services.storage_service import StorageService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -128,3 +129,86 @@ async def delete_review(
     if not ok:
         raise HTTPException(status_code=500, detail="No se pudo borrar la review")
     return MessageResponse(message="Review eliminada")
+
+# ====================== DELETE review ======================
+@router.delete(
+    "/{place_id}/reviews/{review_id}",
+    response_model=MessageResponse,
+    summary="Borrar review",
+)
+async def delete_review(
+    place_id: UUID,
+    review_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    svc: SupabaseService = Depends(get_db_service),
+):
+    all_reviews = await svc.list_reviews(place_id)
+    review = next((r for r in all_reviews if r["id"] == str(review_id)), None)
+
+    if not review:
+        raise HTTPException(status_code=404, detail="Review no encontrada")
+
+    is_owner = review["user_id"] == str(current_user["id"])
+    is_admin = current_user.get("role") == "admin"
+
+    if not (is_owner or is_admin):
+        raise HTTPException(status_code=403, detail="Sin permiso para borrar esta review")
+
+    ok = await svc.delete_review(review_id)
+
+    if not ok:
+        raise HTTPException(status_code=500, detail="No se pudo borrar la review")
+
+    return MessageResponse(message="Review eliminada")
+
+
+# ====================== FOTO review ======================
+
+@router.post(
+    "/{place_id}/reviews/{review_id}/photo",
+    summary="Subir foto de review",
+)
+async def upload_review_photo(
+    place_id: UUID,
+    review_id: UUID,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+    svc: SupabaseService = Depends(get_db_service),
+    storage: StorageService = Depends(get_storage),
+):
+
+    review = await svc.get_review(review_id)
+
+    if not review:
+        raise HTTPException(
+            status_code=404,
+            detail="Review no encontrada"
+        )
+
+    if review["user_id"] != str(current_user["id"]):
+        raise HTTPException(
+            status_code=403,
+            detail="No podés modificar esta review"
+        )
+
+
+    content = await file.read()
+
+    url = await storage.upload_photo(
+        place_id=place_id,
+        user_id=current_user["id"],
+        file_content=content,
+        filename=file.filename,
+        content_type=file.content_type,
+    )
+
+
+    photo = await svc.create_photo(
+        place_id,
+        current_user["id"],
+        url,
+        False,
+        review_id
+    )
+
+    return photo
