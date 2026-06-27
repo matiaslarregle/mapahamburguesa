@@ -118,6 +118,19 @@ async def update_place(
     return place
 
 
+# ====================== GET visited ======================
+@router.get(
+    "/visited",
+    summary="IDs de locales visitados por el usuario autenticado",
+)
+async def get_visited_places(
+    current_user: dict = Depends(get_current_user),
+    svc: SupabaseService = Depends(get_db_service),
+):
+    ids = await svc.get_visited_place_ids(current_user["id"])
+    return {"visited_place_ids": ids}
+
+
 # ====================== DELETE (admin) ======================
 @router.delete("/{place_id}", response_model=MessageResponse, summary="Eliminar local (admin)")
 async def delete_place(
