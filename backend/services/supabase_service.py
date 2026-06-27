@@ -257,22 +257,6 @@ class SupabaseService:
         except Exception:
             return None
 
-    async def get_review(
-        self, review_id: UUID
-    ) -> Optional[Dict[str, Any]]:
-        try:
-            res = (
-                self.db.table("reviews")
-                .select("*")
-                .eq("id", str(review_id))
-                .maybe_single()
-                .execute()
-            )
-            return res.data if res else None
-        except Exception as e:
-            logger.error(f"Error get_review({review_id}): {e}")
-            return None
-
     async def create_review(
         self, place_id: UUID, user_id: UUID, rating: int, comment: Optional[str]
     ) -> Dict[str, Any]:
@@ -326,7 +310,7 @@ class SupabaseService:
         return res.count or 0
 
     async def create_photo(
-        self, place_id: UUID, user_id: UUID, url: str, is_cover: bool = False, review_id: Optional[UUID] = None,
+        self, place_id: UUID, user_id: UUID, url: str, is_cover: bool = False
     ) -> Dict[str, Any]:
         res = (
             self.db.table("photos")
@@ -336,7 +320,6 @@ class SupabaseService:
                     "user_id": str(user_id),
                     "url": url,
                     "is_cover": is_cover,
-                    "review_id": str(review_id) if review_id else None,  # ← YA ESTÁ, solo verifica
                 }
             )
             .execute()
