@@ -83,56 +83,26 @@
     },
 
     // ====================== Reviews ======================
-    // ====================== Reviews ======================
     reviews: {
       list(placeId) {
         return api.request(`/places/${placeId}/reviews`);
       },
-
       create(placeId, data) {
         return api.request(`/places/${placeId}/reviews`, {
           method: "POST",
           body: JSON.stringify(data),
         });
       },
-
       update(placeId, reviewId, data) {
         return api.request(`/places/${placeId}/reviews/${reviewId}`, {
           method: "PUT",
           body: JSON.stringify(data),
         });
       },
-
       delete(placeId, reviewId) {
         return api.request(`/places/${placeId}/reviews/${reviewId}`, {
           method: "DELETE",
         });
-      },
-
-
-      // NUEVO: foto asociada a review
-      async uploadPhoto(placeId, reviewId, formData) {
-        const url = `${api.BASE_URL}/places/${placeId}/reviews/${reviewId}/photo`;
-
-        const headers = {};
-
-        if (window.auth) {
-          const token = await window.auth.getAccessToken();
-          if (token) headers["Authorization"] = `Bearer ${token}`;
-        }
-
-        const res = await fetch(url, {
-          method: "POST",
-          body: formData,
-          headers,
-        });
-
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.detail || "Error al subir foto de review");
-        }
-
-        return res.json();
       },
     },
 
