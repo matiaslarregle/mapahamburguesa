@@ -256,24 +256,6 @@ class SupabaseService:
             return res.data if res else None
         except Exception:
             return None
-    async def get_user_review(
-    self, place_id: UUID, user_id: UUID
-) -> Optional[Dict[str, Any]]:
-    try:
-        res = (
-            self.db.table("reviews")
-            .select("*")
-            .eq("place_id", str(place_id))
-            .eq("user_id", str(user_id))
-            .maybe_single()
-            .execute()
-        )
-        return res.data if res else None
-    except Exception:
-        return None
-
-
-# AGREGAR ESTA NUEVA ABAJO
 
     async def get_review(
         self, review_id: UUID
