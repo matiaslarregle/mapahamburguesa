@@ -10,6 +10,7 @@
     showHeatmap: false,
     places: [],
     markersByPlaceId: {},
+    visitedPlaceIds: new Set(),
 
     // Color del marker según place_type
     typeColors: {
@@ -70,6 +71,17 @@
     // ---------- FETCH + RENDER ----------
     async loadPlaces(filters = {}) {
       try {
+        // Cargar locales visitados si el usuario está logueado
+        if (window.auth) {
+          const user = await window.auth.getCurrentUser();
+          if (user) {
+            try {
+              const visited = await window.api.places.getVisited();
+              this.visitedPlaceIds = new Set(visited.visited_place_ids || []);
+            } catch (_) {}
+          }
+        }
+
         const res = await window.api.places.list({
           limit: 200,
           ...filters,
@@ -112,17 +124,18 @@
     makeIcon(place) {
       const color = this.typeColors[place.place_type] || "#666";
       const rating = (place.avg_rating || 0).toFixed(1);
+      const visited = this.visitedPlaceIds.has(place.id);
       return L.divIcon({
         className: "custom-marker",
         html: `
           <div style="
-            background: ${color};
+            background: ${visited ? "#22c55e" : color};
             color: white;
             width: 36px;
             height: 36px;
             border-radius: 50% 50% 50% 0;
             transform: rotate(-45deg);
-            border: 2px solid white;
+            border: ${visited ? "2px solid #16a34a" : "2px solid white"};
             box-shadow: 0 2px 6px rgba(0,0,0,0.3);
             display: flex;
             align-items: center;
@@ -130,7 +143,7 @@
             font-size: 11px;
             font-weight: 700;
           ">
-            <span style="transform: rotate(45deg);">${rating}</span>
+            <span style="transform: rotate(45deg);">${visited ? "✓" : rating}</span>
           </div>
         `,
         iconSize: [36, 36],
