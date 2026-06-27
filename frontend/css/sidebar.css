@@ -310,3 +310,16 @@
   border-radius: 12px;
   font-size: 13px;
 }
+
+/* Visited badge */
+.visited-badge {
+  display: inline-block;
+  background: #22c55e;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
