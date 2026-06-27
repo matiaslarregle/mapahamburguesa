@@ -138,10 +138,6 @@ class ReviewWithUser(ReviewResponse):
     user_avatar: Optional[str] = None
 
 
-class ReviewWithPhotos(ReviewWithUser):
-    photos: List['PhotoResponse'] = []
-
-
 # ====================== Photos ======================
 class PhotoResponse(BaseModel):
     id: UUID
@@ -149,7 +145,6 @@ class PhotoResponse(BaseModel):
     user_id: UUID
     url: str
     is_cover: bool
-    review_id: Optional[UUID] = None
     created_at: datetime
 
 
