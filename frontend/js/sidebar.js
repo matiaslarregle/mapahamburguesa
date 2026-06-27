@@ -117,7 +117,7 @@
         ${this.renderSchedule(place)}
         ${this.renderPayments(place)}
         ${this.renderHighlights(place)}
-        ${this.renderGallery(photos.filter(p => !p.review_id))}
+        ${this.renderGallery(photos)}
         ${this.renderReviews(reviews, userHasReview, photos)}
         ${this.renderFooter(place)}
       `;
@@ -351,6 +351,16 @@
         img.addEventListener("click", () => {
           this.galleryIndex = Number(img.dataset.photoIndex);
           this.openGallery();
+        });
+      });
+
+      // Fotos dentro de reviews → lightbox
+      this.contentEl.querySelectorAll(".review-photo").forEach((img) => {
+        img.addEventListener("click", () => {
+          this.galleryImages = [...this.contentEl.querySelectorAll(".review-photo")].map(i => i.src);
+          this.galleryIndex = [...this.contentEl.querySelectorAll(".review-photo")].indexOf(img);
+          document.getElementById("modal-gallery").classList.remove("hidden");
+          this.renderGalleryImage();
         });
       });
 
