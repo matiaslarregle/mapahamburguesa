@@ -59,6 +59,10 @@
         return api.request(`/places/${qs ? "?" + qs : ""}`);
       },
 
+      getVisited() {
+        return api.request("/places/visited");
+      },
+
       get(id) {
         return api.request(`/places/${id}`);
       },
