@@ -136,7 +136,7 @@ Si ninguno encaja, devolvé suggested_place_ids: [] y un message explicando por 
         self, user_message: str, candidates: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """Si Gemini no está disponible, devolvemos los top por rating."""
-        top = sorted(candidates, key=lambda c: c.get("avg_rating", 0), reverse=True)[:5]
+        top = sorted(candidates, key=lambda c: c.get("avg_rating") or 0, reverse=True)[:5]
         msg = (
             "Estas son nuestras mejores recomendaciones:" if top
             else "Por ahora no encontramos locales que coincidan con tu búsqueda. Probá relajar algún filtro."
