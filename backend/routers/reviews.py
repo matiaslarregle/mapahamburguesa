@@ -60,6 +60,8 @@ async def create_review(
         rating=payload.rating,
         comment=payload.comment,
     )
+    # Marcar el local como visitado automáticamente
+    await svc.mark_visited(current_user["id"], place_id)
     logger.info(f"Review creada en {place_id} por {current_user['email']}")
     return review
 
