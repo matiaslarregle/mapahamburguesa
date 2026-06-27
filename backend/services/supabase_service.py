@@ -310,7 +310,7 @@ class SupabaseService:
         return res.count or 0
 
     async def create_photo(
-        self, place_id: UUID, user_id: UUID, url: str, is_cover: bool = False
+        self, place_id: UUID, user_id: UUID, url: str, is_cover: bool = False, review_id: Optional[UUID] = None,
     ) -> Dict[str, Any]:
         res = (
             self.db.table("photos")
@@ -320,6 +320,7 @@ class SupabaseService:
                     "user_id": str(user_id),
                     "url": url,
                     "is_cover": is_cover,
+                    "review_id": str(review_id) if review_id else None,
                 }
             )
             .execute()
