@@ -190,9 +190,11 @@
           const file = photoInput?.files?.[0];
           if (file) {
             try {
-              const resized = await window.imageResizer?.resize(file) || file;
+              const resized = window.imageResize ? await window.imageResize(file) : file;
               const formData = new FormData();
               formData.append("file", resized);
+              // Asociar la foto a la review
+              if (review?.id) formData.append("review_id", review.id);
               // Token fresco para el upload de foto
               let photoToken = "";
               try { photoToken = await window.cfTurnstile?.getToken?.(e.target) || ""; } catch(_) {}
