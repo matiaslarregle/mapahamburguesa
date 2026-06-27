@@ -3,7 +3,14 @@ Router de reviews: 1 review por usuario por local.
 """
 import logging
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    UploadFile,
+    File
+)
 from ..dependencies import get_current_user, get_db_service, verify_turnstile
 from ..schemas import (
     ReviewCreate, ReviewUpdate, ReviewResponse, ReviewWithUser, MessageResponse,
