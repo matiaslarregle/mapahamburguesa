@@ -257,6 +257,24 @@ class SupabaseService:
         except Exception:
             return None
 
+    async def mark_visited(self, user_id: UUID, place_id: UUID) -> None:
+        """Marca un local como visitado por el usuario (ignora duplicados)."""
+        try:
+            self.db.table("visited_places").insert({
+                "user_id": str(user_id),
+                "place_id": str(place_id),
+            }).execute()
+        except Exception:
+            pass  # Ya existe, ignorar
+
+    async def get_visited_place_ids(self, user_id: UUID) -> list:
+        """Devuelve lista de place_ids visitados por el usuario."""
+        try:
+            res = self.db.table("visited_places").select("place_id").eq("user_id", str(user_id)).execute()
+            return [r["place_id"] for r in (res.data or [])]
+        except Exception:
+            return []
+
     async def create_review(
         self, place_id: UUID, user_id: UUID, rating: int, comment: Optional[str]
     ) -> Dict[str, Any]:
