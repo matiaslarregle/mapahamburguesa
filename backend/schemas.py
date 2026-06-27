@@ -145,6 +145,7 @@ class PhotoResponse(BaseModel):
     user_id: UUID
     url: str
     is_cover: bool
+    review_id: Optional[UUID] = None
     created_at: datetime
 
 
