@@ -264,17 +264,47 @@
       `;
     },
 
-    renderReviews(reviews, userHasReview) {
-      const canEdit = userHasReview && this.currentUser;
+    renderReviewItem(r, canEdit) {
+      const author = r.profiles?.name || "Usuario";
+      const avatar = r.profiles?.avatar_url;
+      const date = new Date(r.created_at).toLocaleDateString("es-AR", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+      const isOwn = this.currentUser && r.user_id === this.currentUser.id;
+      const stars = "★".repeat(r.rating) + "☆".repeat(5 - r.rating);
+      const photos = r.photos && r.photos.length > 0 ? r.photos : [];  // ← NUEVO
+
       return `
-        <div class="sidebar-section">
-          <h3>⭐ Reviews (${reviews.length})</h3>
-          ${reviews.length === 0
-            ? `<p class="reviews-empty">Todavía no hay reviews. ¡Sé el primero en opinar!</p>`
-            : reviews
-                .map((r) => this.renderReviewItem(r, canEdit))
-                .join("")
-          }
+        <div class="review-item" data-review-id="${r.id}">
+          <div class="review-header">
+            <div class="review-author-info">
+              ${avatar
+                ? `<img src="${avatar}" alt="" class="review-avatar" />`
+                : `<div class="review-avatar review-avatar-default">${author.charAt(0).toUpperCase()}</div>`
+              }
+              <div>
+                <span class="review-author">${this.esc(author)}${isOwn ? " (vos)" : ""}</span>
+                <span class="review-date">${date}</span>
+              </div>
+            </div>
+            <span class="review-stars">${stars}</span>
+          </div>
+          ${r.comment ? `<p class="review-comment">${this.esc(r.comment)}</p>` : ""}
+          ${photos.length > 0 ? `                                           <!-- ← NUEVO BLOQUE -->
+            <div class="review-photos">
+              ${photos.map((ph, idx) => `
+                <img src="${ph.url}" alt="Foto ${idx + 1}" class="review-photo" loading="lazy" />
+              `).join('')}
+            </div>
+          ` : ""}
+          ${isOwn ? `
+            <div class="review-actions">
+              <button class="btn btn-ghost btn-sm" data-review-action="edit" data-review-id="${r.id}">Editar</button>
+              <button class="btn btn-ghost btn-sm" data-review-action="delete" data-review-id="${r.id}">Borrar</button>
+            </div>
+          ` : ""}
         </div>
       `;
     },
