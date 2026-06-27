@@ -119,6 +119,8 @@
 .review-author { font-weight: 600; font-size: 13px; }
 .review-date { color: var(--color-text-muted); font-size: 11px; }
 .review-comment { font-size: 14px; line-height: 1.4; margin: 6px 0 0 0; }
+.review-photos { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.review-photo { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; cursor: pointer; }
 
 /* Acciones del sidebar */
 .sidebar-actions {
