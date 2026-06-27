@@ -39,6 +39,7 @@ async def upload_photo(
     place_id: UUID,
     file: UploadFile = File(..., description="Imagen (jpg/png/webp, máx 8MB)"),
     is_cover: bool = Form(False),
+    review_id: str = Form(None),
     current_user: dict = Depends(get_current_user),
     svc: SupabaseService = Depends(get_db_service),
     storage: StorageService = Depends(get_storage),
@@ -79,13 +80,13 @@ async def upload_photo(
     # 5) Si es cover, desmarcar las otras
     if is_cover:
         # Necesitamos el ID de la foto a crear — lo creamos y después la marcamos
-        photo = await svc.create_photo(place_id, current_user["id"], public_url, False)
+        photo = await svc.create_photo(place_id, current_user["id"], public_url, False, UUID(review_id) if review_id else None)
         await svc.set_cover_photo(place_id, photo["id"])
         photo["is_cover"] = True
         return photo
 
     # 6) Si era la primera foto, la marcamos automáticamente como cover
-    photo = await svc.create_photo(place_id, current_user["id"], public_url, is_cover)
+    photo = await svc.create_photo(place_id, current_user["id"], public_url, is_cover, UUID(review_id) if review_id else None)
     if current_count == 0:
         await svc.set_cover_photo(place_id, photo["id"])
         photo["is_cover"] = True
@@ -143,4 +144,3 @@ async def set_cover(
     if not photo:
         raise HTTPException(status_code=404, detail="Foto no encontrada")
     return photo
-
