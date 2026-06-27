@@ -127,8 +127,9 @@
 
     // ====================== SUB-RENDERS ======================
     renderHeader(place) {
+      const visited = window.mapApp?.visitedPlaceIds?.has(place.id);
       return `
-        <h1 id="sidebar-title" class="place-name">${this.esc(place.name)}</h1>
+        <h1 id="sidebar-title" class="place-name">${this.esc(place.name)}${visited ? ' <span class="visited-badge">✓ Ya estuviste acá</span>' : ""}</h1>
         <p class="place-address">📍 ${this.esc(place.address)}, ${this.esc(place.city)} (${this.esc(place.partido)})</p>
       `;
     },
